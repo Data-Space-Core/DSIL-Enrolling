@@ -1,0 +1,6 @@
+Flask
+Flask-OIDC
+requests
+flask_cors
+python-keycloak
+PyJWT
