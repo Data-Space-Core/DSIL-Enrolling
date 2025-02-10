@@ -46,3 +46,25 @@ async function createClient(token, data) {
 ````
 token must be obtained from Keycloak in the frontend app
 
+## Testing
+To test the API you can use curl but you must get valid token for authentication. You can do that for example like this:
+```
+curl -X POST "https://cloud.ouludatalab.fi/realms/master/protocol/openid-connect/token" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "client_id=server_api" \
+     -d "client_secret=your_client_secret"
+     -d "grant_type=password" \
+     -d "username=your_username" \
+     -d "password=your_password" \
+     -d "scope=openid profile email roles"
+```
+Then you can use Curl to call the API:
+````
+curl -X GET "http://cloud.ouludatalab.fi:5000/api/client" -H "Authorization: Bearer eyJhbGciO..." -d "{\"name\": \"apitest\", \"keycloak\": { \"admin\": \"admin2\", \"password\": \"password2\"}}"
+````
+
+## Keycloak configuration
+You need to create client in Keycloak and in client scopes take "dedicated scopes" and add a Mapper to realm roles in order to have roles list included  in the access token
+
+
+

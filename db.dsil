@@ -1,1 +1,3 @@
 # example zone file
+apitest    IN    CNAME    dsil.collab-cloud.eu.
+apitest    IN    CNAME    dsil.collab-cloud.eu.

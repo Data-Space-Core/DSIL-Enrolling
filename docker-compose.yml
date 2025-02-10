@@ -5,10 +5,10 @@ services:
     container_name: server-api
     environment:
       CLIENT_ID: server-api
-      CLIENT_SECRET: SGL58yyyzsrU8dvnotg0pohZPQwQun4w
-      KEYCLOAK_SERVER_URL: https://cloud.ouludatalab.fi/auth/realms/DSIL
-      REALM: DSIL
-      NS_ZONE_FILE: /config/db.dsil
+      CLIENT_SECRET: RaCQ4uctlF9niwchcusag8FbKbklgFGw
+      KEYCLOAK_SERVER_URL: https://cloud.ouludatalab.fi/auth
+      REALM: master
+      DNS_ZONE_FILE: /config/db.dsil
     ports:
       - "9090:5000"
     volumes:
