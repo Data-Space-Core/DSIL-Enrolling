@@ -1,6 +1,6 @@
 services:
   server-api:
-    build: ./server-api
+    build: .
     hostname: server-api
     container_name: server-api
     environment:
