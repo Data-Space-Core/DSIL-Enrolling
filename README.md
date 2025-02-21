@@ -66,5 +66,23 @@ curl -X GET "http://cloud.ouludatalab.fi:5000/api/client" -H "Authorization: Bea
 ## Keycloak configuration
 You need to create client in Keycloak and in client scopes take "dedicated scopes" and add a Mapper to realm roles in order to have roles list included  in the access token
 
+## Kubernetes conbfiguration
+In order to create a client namespace in kubernetes cluster you need to provide cluster config file. 
+````
+microk8s config > ./kubeconfig.yaml
+````
+In docker-compose.yml that file is mounted on the container and KUBECONFIG environment variable set:
+````
+services:
+  server-api:
+    ...
+    environment:
+     ...
+      KUBECONFIG: /root/.kube/config
+    volumes:
+     ...
+      - ./kubeconfig.yaml:/root/.kube/config
+````
+
 
 

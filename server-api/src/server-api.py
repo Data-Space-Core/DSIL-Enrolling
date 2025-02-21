@@ -3,7 +3,11 @@ from flask_cors import CORS
 import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError, PyJWKClient
 import os
+import subprocess
+import yaml
+import git
 import requests
+from kubernetes import client, config
 from keycloak.keycloak_admin import KeycloakAdmin
 
 app = Flask(__name__)
@@ -18,6 +22,12 @@ CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REALM = os.getenv("REALM")
 DNS_ZONE_FILE = os.getenv("DNS_ZONE_FILE")
+GITHUB_REPO = os.getenv("GITHUB_REPO")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+# Load the kubeconfig
+config.load_kube_config("/root/.kube/config")
+v1 = client.CoreV1Api()
 
 # Function to validate the token with Keycloak
 def validate_token(token):
@@ -45,6 +55,14 @@ def add_cname_record(client_name):
 		print(f"Error writing to DNS zone file: {e}")
 		return False
 
+def create_namespace(client_name):
+	try:
+		namespace = client.V1Namespace(metadata=client.V1ObjectMeta(name=client_name))
+		v1.create_namespace(namespace)
+		return True
+	except Exception as e:
+		print(f"Error creating Kubernetes namespace: {e}")
+		return False
 def get_admin_token_for_realm(client_name, admin_user, admin_password):
     url = f"{KEYCLOAK_SERVER}/realms/{client_name}/protocol/openid-connect/token"
     payload = {
@@ -126,7 +144,8 @@ def create_client():
 		return jsonify({"error": "Missing required parameters"}), 400
 	if not add_cname_record(client_name):
 		return jsonify({"error": "Failed to add DNS record"}), 500
-
+	if not create_namespace(client_name):
+		return jsonify({"error": "Failed to create namespace"}), 500
 	if not create_keycloak_realm(client_name, keycloak_admin, keycloak_password, token):
 		return jsonify({"error": "Failed to create Keycloak realm"}), 500
 	if not create_keycloak_realmuser(client_name, keycloak_admin, keycloak_password, token):
