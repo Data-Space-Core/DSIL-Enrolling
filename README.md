@@ -60,7 +60,7 @@ curl -X POST "https://cloud.ouludatalab.fi/realms/master/protocol/openid-connect
 ```
 Then you can use Curl to call the API:
 ````
-curl -X GET "http://cloud.ouludatalab.fi:5000/api/client" -H "Authorization: Bearer eyJhbGciO..." -d "{\"name\": \"apitest\", \"keycloak\": { \"admin\": \"admin2\", \"password\": \"password2\"}}"
+curl -X POST "http://cloud.ouludatalab.fi:5000/api/client" -H "Authorization: Bearer eyJhbGciO..." -d "{\"name\": \"apitest\", \"keycloak\": { \"admin\": \"admin2\", \"password\": \"password2\"}}"
 ````
 
 ## Keycloak configuration
@@ -84,5 +84,6 @@ services:
       - ./kubeconfig.yaml:/root/.kube/config
 ````
 
+## TODO
 
-
+Docker user creation to the new realm does not work yet and needs to be manually added from the Admin Console
