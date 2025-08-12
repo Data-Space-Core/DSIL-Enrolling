@@ -9,8 +9,9 @@ services:
       KEYCLOAK_SERVER_URL: https://resonance.collab-cloud.eu/auth
       REALM: master
       DNS_ZONE_FILE: /config/db.dsil
+      KUBECONFIG: /root/.kube/config
     ports:
       - "9090:5000"
     volumes:
       - ./db.dsil:/config/db.dsil
-      - ../kubeconfig.yaml:/root/.kube/config
+      - ./kubeconfig.yaml:/root/.kube/config

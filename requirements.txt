@@ -4,6 +4,6 @@ requests
 flask_cors
 python-keycloak
 PyJWT
-PyYAML
-gitpython 
+pyyaml
 kubernetes
+GitPython

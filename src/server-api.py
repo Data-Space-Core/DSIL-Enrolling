@@ -16,6 +16,10 @@ CORS(app)
 print(os.getenv("KEYCLOAK_SERVER_URL"))
 print(os.getenv("CLIENT_ID"))
 print(os.getenv("CLIENT_SECRET"))
+print(os.getenv("KUBECONFIG"))
+print(os.getenv("PARENT_DOMAIN"))
+print(os.getenv("DNS_SERVER1"))
+print(os.getenv("DNS_SERVER2"))
 
 KEYCLOAK_SERVER = os.getenv("KEYCLOAK_SERVER_URL")
 CLIENT_ID = os.getenv("CLIENT_ID")
@@ -24,9 +28,12 @@ REALM = os.getenv("REALM")
 DNS_ZONE_FILE = os.getenv("DNS_ZONE_FILE")
 GITHUB_REPO = os.getenv("GITHUB_REPO")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-
+KUBECONFIG = os.getenv("KUBECONFIG", "")
+PARENT_DOMAIN = os.getenv("PARENT_DOMAIN", "")
+DNS_SERVER1 = os.getenv("DNS_SERVER1", "")
+DNS_SERVER2 = os.getenv("DNS_SERVER2", "")
 # Load the kubeconfig
-config.load_kube_config("/etc/dsil-enrolling/kubeconfig.yaml")
+config.load_kube_config(KUBECONFIG)
 v1 = client.CoreV1Api()
 
 # Function to validate the token with Keycloak
@@ -49,7 +56,7 @@ def validate_token(token):
 # Function to add CNAME record
 def add_cname_record(client_name):
 	try:
-		cname_entry = f"{client_name}    IN    CNAME    dsil.collab-cloud.eu.\n"
+		cname_entry = f"{client_name}    IN    CNAME    {PARENT_DOMAIN}\n"
 		with open(DNS_ZONE_FILE, "a") as f:
 			f.write(cname_entry)
 		return True
@@ -65,6 +72,7 @@ def create_namespace(client_name):
 	except Exception as e:
 		print(f"Error creating Kubernetes namespace: {e}")
 		return False
+
 def get_admin_token_for_realm(client_name, admin_user, admin_password):
 	url = f"{KEYCLOAK_SERVER}/realms/{client_name}/protocol/openid-connect/token"
 	payload = {
@@ -102,35 +110,48 @@ def create_keycloak_realm(client_name, token):
 # Function to create Keycloak realm and user
 def create_keycloak_realmuser(client_name, admin_user, admin_password, token):
 	keycloak_url = f"{KEYCLOAK_SERVER}/admin/realms"
-	#new_realm_token = get_admin_token_for_realm(client_name, admin_user, admin_password)
-	#print(f"New realm token: {new_realm_token}")
-	#if not new_realm_token:
-	#	print("Error getting admin token for new realm")
-	#	return False
-
-	# Realm creation was successful, now create the user
 	# Create user payload
 	user_payload = {
 		"username": admin_user,
 		"enabled": True,
 		"credentials": [{"type": "password", "value": admin_password, "temporary": True}],
 	}
-
 	# URL for creating user in the new realm
 	user_url = f"{KEYCLOAK_SERVER}/admin/realms/{client_name}/users"
 	# Send request to create user with the new realm's admin token
+	print(f"Creating new user with URL: {user_url}")
 	response = requests.post(
 		user_url,
 		json=user_payload,
-		#headers={"Authorization": f"Bearer {new_realm_token}"}
 		headers={"Authorization": f"Bearer {token}"}
 	)
+
 	if response.status_code != 201:
 		print(f"{response.status_code}")
 		print(f"Error creating user: {response.text}")
 		print(f"URL: {user_url}")
 		print(f"Payload: {user_payload}")
 		print(f"Token: Bearer {token}")
+		return False
+	return True
+def upload_dns_zone(token):
+	try:
+		with open(DNS_ZONE_FILE, 'rb') as f:
+			files = {'file': (DNS_ZONE_FILE.split('/')[-1], f)}
+			response = requests.post(f"{DNS_SERVER1}/zone", files=files)
+			if response.status_code == 200:
+				print(f"Success: {response.json()['message']}")
+			else:
+				print(f"Failed to send to {DNS_SERVER1}: {response.status_code} - {response.text}")
+				return False
+			response = requests.post(f"{DNS_SERVER2}/zone", files=files)
+			if response.status_code == 200:
+				print(f"Success: {response.json()['message']}")
+			else:
+				print(f"Failed to send to {DNS_SERVER2}: {response.status_code} - {response.text}")
+				return False
+	except Exception as e:
+		print(f"Error sending file: {e}")
 		return False
 	return True
 
@@ -151,14 +172,25 @@ def create_client():
 	keycloak_password = data.get("keycloak", {}).get("password")
 	if not client_name or not keycloak_admin or not keycloak_password:
 		return jsonify({"error": "Missing required parameters"}), 400
+	print("Start Onboarding process")
+	print("\t - Obtained master domain token")
 	if not add_cname_record(client_name):
 		return jsonify({"error": "Failed to add DNS record"}), 500
+	print("\t - CNAME record added")
+	if not upload_dns_zone(token):
+		return jsonify({"error": "Failed to upload DNS zone "}), 500
+	print("\t - DNS Zone uploaded")
 	if not create_namespace(client_name):
 		return jsonify({"error": "Failed to create namespace"}), 500
-	if not create_keycloak_realm(client_name, token):
+	print("\t - Kubernetes Namespace added")
+
+	if not create_keycloak_realm(client_name, keycloak_admin, keycloak_password, token):
 		return jsonify({"error": "Failed to create Keycloak realm"}), 500
-	#if not create_keycloak_realmuser(client_name, keycloak_admin, keycloak_password, token):
- #		return jsonify({"error": "Failed to create Keycloak realmuser"}), 500
+	print("\t - Keycloak Realm added")
+	if not create_keycloak_realmuser(client_name, keycloak_admin, keycloak_password, token):
+		return jsonify({"error": "Failed to create Keycloak realmuser. Create user manually"}), 500
+	print("\t - Keycloack Realm Admin added")
+
 	return jsonify({"message": "Client created successfully"}), 201
 
 if __name__ == "__main__":
