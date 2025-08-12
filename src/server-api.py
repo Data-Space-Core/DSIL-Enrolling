@@ -41,11 +41,13 @@ def validate_token(token):
 	url = f"{KEYCLOAK_SERVER}/realms/{REALM}/protocol/openid-connect/userinfo"
 	headers = {"Authorization": f"Bearer {token}"}
 	response = requests.get(url, headers=headers)
-	print(f"validate_token: {response} url: {url}")
+	print(f"{headers}")
+	#print(f"validate_token: {response} url: {url}")
 	if response.status_code == 200:
 		user_info = response.json()
 		print(f"user_info: {user_info}")
-		roles = user_info.get("realm_access", {}).get("roles", [])
+		#roles = user_info.get("realm_access", {}).get("roles", [])
+		roles = user_info.get("groups", [])
 		print(f"Roles: {roles}")
 		if "admin" in roles:
 			return True, user_info
@@ -72,23 +74,24 @@ def create_namespace(client_name):
 		return False
 
 def get_admin_token_for_realm(client_name, admin_user, admin_password):
-    url = f"{KEYCLOAK_SERVER}/realms/{client_name}/protocol/openid-connect/token"
-    payload = {
-        "client_id": "admin-cli",
-        "username": admin_user,
-        "password": admin_password,
-        "grant_type": "password",
-    }
-    response = requests.post(url, data=payload)
-    
-    if response.status_code == 200:
-        return response.json().get("access_token")
-    else:
-        print(f"Error getting token: {response.text}")
-        return None
+	url = f"{KEYCLOAK_SERVER}/realms/{client_name}/protocol/openid-connect/token"
+	payload = {
+		"client_id": "admin-cli",
+		"username": admin_user,
+		"password": admin_password,
+		"grant_type": "password",
+	}
+	response = requests.post(url, data=payload)
+	print(f"URL: {url}")
+	print(f"Payload: {payload}")
+	if response.status_code == 200:
+		return response.json().get("access_token")
+	else:
+		print(f"Error getting token: {response.text}")
+		return None
 
 # Function to create Keycloak realm and user
-def create_keycloak_realm(client_name, admin_user, admin_password, token):
+def create_keycloak_realm(client_name, token):
 	keycloak_url = f"{KEYCLOAK_SERVER}/admin/realms"
 	# Create the realm payload
 	realm_payload = {"realm": client_name, "enabled": True}
@@ -106,20 +109,13 @@ def create_keycloak_realm(client_name, admin_user, admin_password, token):
 
 # Function to create Keycloak realm and user
 def create_keycloak_realmuser(client_name, admin_user, admin_password, token):
-#	keycloak_url = f"{KEYCLOAK_SERVER}/admin/realms"
-#	new_realm_token = get_admin_token_for_realm(client_name, admin_user, admin_password)
-#	if not new_realm_token:
-#		print("Error getting admin token for new realm")
-#		return False
-
-	# Realm creation was successful, now create the user
+	keycloak_url = f"{KEYCLOAK_SERVER}/admin/realms"
 	# Create user payload
 	user_payload = {
 		"username": admin_user,
 		"enabled": True,
 		"credentials": [{"type": "password", "value": admin_password, "temporary": True}],
 	}
-
 	# URL for creating user in the new realm
 	user_url = f"{KEYCLOAK_SERVER}/admin/realms/{client_name}/users"
 	# Send request to create user with the new realm's admin token
@@ -129,8 +125,13 @@ def create_keycloak_realmuser(client_name, admin_user, admin_password, token):
 		json=user_payload,
 		headers={"Authorization": f"Bearer {token}"}
 	)
+
 	if response.status_code != 201:
+		print(f"{response.status_code}")
 		print(f"Error creating user: {response.text}")
+		print(f"URL: {user_url}")
+		print(f"Payload: {user_payload}")
+		print(f"Token: Bearer {token}")
 		return False
 	return True
 def upload_dns_zone(token):
@@ -182,6 +183,7 @@ def create_client():
 	if not create_namespace(client_name):
 		return jsonify({"error": "Failed to create namespace"}), 500
 	print("\t - Kubernetes Namespace added")
+
 	if not create_keycloak_realm(client_name, keycloak_admin, keycloak_password, token):
 		return jsonify({"error": "Failed to create Keycloak realm"}), 500
 	print("\t - Keycloak Realm added")
