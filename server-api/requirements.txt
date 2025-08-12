@@ -4,3 +4,7 @@ requests
 flask_cors
 python-keycloak
 PyJWT
+pyyaml
+kubernetes
+GitPython
+

@@ -1,2 +1,5 @@
 kubeconfig.yaml
 .env
+__pycache__
+.venv
+*.save
